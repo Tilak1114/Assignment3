@@ -2,7 +2,7 @@ import numpy as np
 from scipy.io import loadmat
 from scipy.optimize import minimize
 from sklearn import svm
-from save_results import ExperimentResult, save_results
+from save_results import ExperimentResult, save_results, save_total_errors, TotalError
 from sklearn.utils import shuffle
 
 
@@ -73,7 +73,7 @@ def preprocess():
     sigma = np.std(train_data, axis=0)
     index = np.array([])
     for i in range(n_feature):
-        if (sigma[i] > 0.001):
+        if sigma[i] > 0.001:
             index = np.append(index, [i])
     train_data = train_data[:, index.astype(int)]
     validation_data = validation_data[:, index.astype(int)]
@@ -126,7 +126,7 @@ def blrObjFunction(initialWeights, *args):
     error = -(np.add(
         np.dot(
             labeli.T,
-            theta
+            np.log(theta)
         ),
         np.dot(
             (1 - labeli).T,
@@ -135,6 +135,8 @@ def blrObjFunction(initialWeights, *args):
     ) / train_data.shape[0])
 
     error = error[0][0]
+
+    total_errors.append(TotalError(error))
 
     error_grad = np.dot((theta - labeli).T, train_data) / train_data.shape[0]
 
@@ -243,26 +245,29 @@ for i in range(n_class):
     Y[:, i] = (train_label == i).astype(int).ravel()
 
 # Logistic Regression with Gradient Descent
-# W = np.zeros((n_feature + 1, n_class))
-# initialWeights = np.zeros((n_feature + 1, 1))
-# opts = {'maxiter': 100}
-# for i in range(n_class):
-#     labeli = Y[:, i].reshape(n_train, 1)
-#     args = (train_data, labeli)
-#     nn_params = minimize(blrObjFunction, initialWeights, jac=True, args=args, method='CG', options=opts)
-#     W[:, i] = nn_params.x.reshape((n_feature + 1,))
-#
-# # Find the accuracy on Training Dataset
-# predicted_label = blrPredict(W, train_data)
-# print('\n Training set Accuracy:' + str(100 * np.mean((predicted_label == train_label).astype(float))) + '%')
-#
-# # Find the accuracy on Validation Dataset
-# predicted_label = blrPredict(W, validation_data)
-# print('\n Validation set Accuracy:' + str(100 * np.mean((predicted_label == validation_label).astype(float))) + '%')
-#
-# # Find the accuracy on Testing Dataset
-# predicted_label = blrPredict(W, test_data)
-# print('\n Testing set Accuracy:' + str(100 * np.mean((predicted_label == test_label).astype(float))) + '%')
+total_errors = []
+W = np.zeros((n_feature + 1, n_class))
+initialWeights = np.zeros((n_feature + 1, 1))
+opts = {'maxiter': 100}
+for i in range(n_class):
+    labeli = Y[:, i].reshape(n_train, 1)
+    args = (train_data, labeli)
+    nn_params = minimize(blrObjFunction, initialWeights, jac=True, args=args, method='CG', options=opts)
+    W[:, i] = nn_params.x.reshape((n_feature + 1,))
+
+# Find the accuracy on Training Dataset
+predicted_label = blrPredict(W, train_data)
+print('\n Training set Accuracy:' + str(100 * np.mean((predicted_label == train_label).astype(float))) + '%')
+
+# Find the accuracy on Validation Dataset
+predicted_label = blrPredict(W, validation_data)
+print('\n Validation set Accuracy:' + str(100 * np.mean((predicted_label == validation_label).astype(float))) + '%')
+
+# Find the accuracy on Testing Dataset
+predicted_label = blrPredict(W, test_data)
+print('\n Testing set Accuracy:' + str(100 * np.mean((predicted_label == test_label).astype(float))) + '%')
+
+save_total_errors(total_errors)
 
 """
 Script for Support Vector Machine
@@ -280,39 +285,54 @@ train_sample_label = train_with_labels[:10000, -1]
 # testing_sample = train_with_labels[20000:30000, :-1]
 # test_label = train_with_labels[20000:30000, -1]
 
-cls = svm.SVC(kernel="linear")
-
-cls.fit(train_sample, train_sample_label)
-
-lin_pred = cls.predict(validation_data)
-
-# accuracy
-print('\n Linear Validation set Accuracy:' + str(
-    100 * np.mean((lin_pred.reshape((lin_pred.shape[0], 1)) == validation_label).astype(float))) + '%')
-
-rbf_cls = svm.SVC(kernel="rbf", gamma=1)
-
-rbf_cls.fit(train_sample, train_sample_label)
-rbf_pred = rbf_cls.predict(validation_data)
-
-# accuracy
-print('\n RBF Validation set Accuracy:' + str(
-    100 * np.mean((rbf_pred.reshape((rbf_pred.shape[0], 1)) == validation_label).astype(float))) + '%')
-
-rbf_cls = svm.SVC(kernel="rbf")
-
-rbf_cls.fit(train_sample, train_sample_label)
-rbf_pred = rbf_cls.predict(validation_data)
-
-# accuracy
-print('\n RBF with default gamma Validation set Accuracy:' + str(
-    100 * np.mean(
-        (rbf_pred.reshape((rbf_pred.shape[0], 1)) == validation_label).astype(float)
-    )
-) + '%')
-
+# cls = svm.SVC(kernel="linear")
+#
+# cls.fit(train_sample, train_sample_label)
+#
+# lin_pred = cls.predict(validation_data)
+#
+# # accuracy
+# print('\n Linear Validation set Accuracy:' + str(
+#     100 * np.mean((lin_pred.reshape((lin_pred.shape[0], 1)) == validation_label).astype(float))) + '%')
+#
+# rbf_cls = svm.SVC(kernel="rbf", gamma=1)
+#
+# rbf_cls.fit(train_sample, train_sample_label)
+# rbf_pred = rbf_cls.predict(validation_data)
+#
+# # accuracy
+# print('\n RBF Validation set Accuracy:' + str(
+#     100 * np.mean((rbf_pred.reshape((rbf_pred.shape[0], 1)) == validation_label).astype(float))) + '%')
+#
+# rbf_cls = svm.SVC(kernel="rbf")
+#
+# rbf_cls.fit(train_sample, train_sample_label)
+# rbf_pred = rbf_cls.predict(validation_data)
+#
+# # accuracy
+# print('\n RBF with default gamma Validation set Accuracy:' + str(
+#     100 * np.mean(
+#         (rbf_pred.reshape((rbf_pred.shape[0], 1)) == validation_label).astype(float)
+#     )
+# ) + '%')
+#
+# experiment_result_list = []
+# rbf_model = svm.SVC(kernel='rbf', C=1)
+#
+# rbf_model.fit(train_sample, train_sample_label)
+# rbf_pred = rbf_model.predict(validation_data)
+#
+# acc = str(
+#     100 * np.mean(
+#         (rbf_pred.reshape((rbf_pred.shape[0], 1)) == validation_label).astype(float)
+#     )
+# )
+#
+# print('\n RBF with c val: 1 Validation set Accuracy:' + acc + '%')
+#
+# experiment_result_list.append(ExperimentResult(1, acc))
 experiment_result_list = []
-rbf_model = svm.SVC(kernel='rbf', C=1)
+rbf_model = svm.SVC(kernel='rbf', C=70)
 
 rbf_model.fit(train_sample, train_sample_label)
 rbf_pred = rbf_model.predict(validation_data)
@@ -323,9 +343,7 @@ acc = str(
     )
 )
 
-print('\n RBF with c val: 1 Validation set Accuracy:' + acc + '%')
-
-experiment_result_list.append(ExperimentResult(1, acc))
+print('\n RBF with c val: 100 Validation set Accuracy:' + acc + '%')
 
 for c in range(10, 101, 10):
     rbf_model = svm.SVC(kernel="rbf", C=c)
@@ -352,7 +370,7 @@ preds = model.predict(test_data)
 
 acc = str(
     100 * np.mean(
-        (rbf_pred.reshape((rbf_pred.shape[0], 1)) == validation_label).astype(float)
+        (preds.reshape((preds.shape[0], 1)) == test_label).astype(float)
     )
 )
 
