@@ -136,7 +136,7 @@ def blrObjFunction(initialWeights, *args):
 
     error = error[0][0]
 
-    total_errors.append(TotalError(error))
+    error_i.append(TotalError(error))
 
     error_grad = np.dot((theta - labeli).T, train_data) / train_data.shape[0]
 
@@ -252,7 +252,9 @@ opts = {'maxiter': 100}
 for i in range(n_class):
     labeli = Y[:, i].reshape(n_train, 1)
     args = (train_data, labeli)
+    error_i = []
     nn_params = minimize(blrObjFunction, initialWeights, jac=True, args=args, method='CG', options=opts)
+    total_errors.append(error_i[-1])
     W[:, i] = nn_params.x.reshape((n_feature + 1,))
 
 # Find the accuracy on Training Dataset
